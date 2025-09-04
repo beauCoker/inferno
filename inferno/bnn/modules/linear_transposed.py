@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from torch import Tensor
 
 
-class Linear(BNNMixin, nn.Module):
+class LinearTransposed(BNNMixin, nn.Module):
     """
     Applies an affine transformation to the input.
 
@@ -54,7 +54,7 @@ class Linear(BNNMixin, nn.Module):
 
         # Weight and bias parameters
         mean_param_dict = {
-            **{"weight": torch.empty((out_features, in_features), **factory_kwargs)},
+            **{"weight": torch.empty((in_features, out_features), **factory_kwargs)},
             **(
                 {"bias": torch.empty(out_features, **factory_kwargs)}
                 if bias
@@ -90,7 +90,7 @@ class Linear(BNNMixin, nn.Module):
         self,
     ) -> None:
         """Reset the parameters of the module."""
-        fan_in, fan_out = nn.init._calculate_fan_in_and_fan_out(self.params.weight)
+        fan_out, fan_in = nn.init._calculate_fan_in_and_fan_out(self.params.weight)
 
         # Mean parameters
         mean_parameter_scales = {}
@@ -119,7 +119,7 @@ class Linear(BNNMixin, nn.Module):
         lr: float,
         optimizer: Literal["SGD", "Adam"] = "SGD",
     ) -> list[dict[str, Tensor | float]]:
-        fan_in, fan_out = nn.init._calculate_fan_in_and_fan_out(self.params.weight)
+        fan_out, fan_in = nn.init._calculate_fan_in_and_fan_out(self.params.weight)
 
         # Weights
         mean_parameter_lr_scales = {}
@@ -179,7 +179,7 @@ class Linear(BNNMixin, nn.Module):
     ) -> Float[Tensor, "*sample *batch out_feature"]:
 
         if (parameter_samples is None) and (self.params.cov is None):
-            output = nn.functional.linear(input, self.params.weight, self.params.bias)
+            output = nn.functional.linear(input, self.params.weight.T, self.params.bias)
 
             # Scale with inverse temperature if not training and the parameters are in the output layer
             if hasattr(self.params, "temperature") and not self.training:
@@ -207,7 +207,7 @@ class Linear(BNNMixin, nn.Module):
             sample_dim_idcs = list(range(len(sample_shape)))
             output = torch.einsum(
                 weight_samples,
-                [*sample_dim_idcs, len(sample_dim_idcs) + 1, len(sample_dim_idcs) + 2],
+                [*sample_dim_idcs, len(sample_dim_idcs) + 2, len(sample_dim_idcs) + 1],
                 input,
                 [*sample_dim_idcs, ..., len(sample_dim_idcs) + 2],
                 [
