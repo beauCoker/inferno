@@ -71,14 +71,6 @@ def make_cov(cov):
         return NotImplementedError("cov not found")
 
 
-def make_parametrization(parametrization_name):
-    # TO DO: do we need this?
-    if parametrization_name == "muP":
-        return bnn.params.parametrizations.maximal_update.MaximalUpdate()
-    elif parametrization_name == "SP":
-        return bnn.params.parametrizations.standard.Standard()
-
-
 def load_tf_weights_in_gpt2(model, config, gpt2_checkpoint_path):
     """Load tf checkpoints in a pytorch model"""
     try:
@@ -227,8 +219,18 @@ class GPT2Attention(bnn.BNNMixin, nn.Module):
             self.c_attn = Conv1D(2 * self.embed_dim, self.embed_dim)
             self.q_attn = Conv1D(self.embed_dim, self.embed_dim)
         else:
-            self.c_attn = Conv1D(3 * self.embed_dim, self.embed_dim)
-        self.c_proj = Conv1D(self.embed_dim, self.embed_dim)
+            self.c_attn = bnn.LinearTransposed(
+                in_features=self.embed_dim,
+                out_features=3 * self.embed_dim,
+                bias=True,
+                cov=make_cov(cov.get("c_attn", None)),
+            )
+        self.c_proj = bnn.LinearTransposed(
+            in_features=self.embed_dim,
+            out_features=self.embed_dim,
+            bias=True,
+            cov=make_cov(cov.get("c_proj", None)),
+        )
 
         self.attn_dropout = nn.Dropout(config.attn_pdrop)
         self.resid_dropout = nn.Dropout(config.resid_pdrop)
@@ -440,8 +442,20 @@ class GPT2MLP(bnn.BNNMixin, nn.Module):
     def __init__(self, intermediate_size, config, cov={}):
         super().__init__()
         embed_dim = config.hidden_size
-        self.c_fc = Conv1D(intermediate_size, embed_dim)
-        self.c_proj = Conv1D(embed_dim, intermediate_size)
+        self.c_fc = bnn.LinearTransposed(
+            in_features=embed_dim,
+            out_features=intermediate_size,
+            bias=True,
+            layer_type="hidden",
+            cov=make_cov(cov.get("c_fc", None)),
+        )
+        self.c_proj = bnn.LinearTransposed(
+            in_features=intermediate_size,
+            out_features=embed_dim,
+            bias=True,
+            layer_type="hidden",
+            cov=make_cov(cov.get("c_proj", None)),
+        )
         self.act = ACT2FN[config.activation_function]
         self.dropout = nn.Dropout(config.resid_pdrop)
 
@@ -802,7 +816,7 @@ class GPT2Model(bnn.BNNMixin, GPT2PreTrainedModel):
     _supports_param_buffer_assignment = False
 
     def __init__(self, config, cov={}):
-        super().__init__(config)
+        super().__init__(config=config)
 
         self.embed_dim = config.hidden_size
 
@@ -1141,9 +1155,15 @@ class GPT2LMHeadModel(bnn.BNNMixin, GPT2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
 
     def __init__(self, config, cov={}):
-        super().__init__(config)
+        super().__init__(parametrization, config)
         self.transformer = GPT2Model(config, cov=cov.get("transformer", {}))
-        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+        self.lm_head = bnn.Linear(
+            config.n_embd,
+            config.vocab_size,
+            bias=False,
+            layer_type="output",
+            cov=make_cov(cov.get("lm_head", None)),
+        )
 
         # Model parallel
         self.model_parallel = False
