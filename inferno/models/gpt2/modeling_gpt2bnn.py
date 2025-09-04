@@ -535,6 +535,8 @@ class GPT2Block(bnn.BNNMixin, GradientCheckpointingLayer):
         encoder_attention_mask: Optional[torch.FloatTensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
+        sample_shape: torch.Size = torch.Size([]),
+        generator: torch.Generator | None = None,
         **kwargs,
     ) -> Union[
         tuple[torch.Tensor],
@@ -550,6 +552,8 @@ class GPT2Block(bnn.BNNMixin, GradientCheckpointingLayer):
             head_mask=head_mask,
             use_cache=use_cache,
             output_attentions=output_attentions,
+            sample_shape=sample_shape,
+            generator=generator,
             **kwargs,
         )
         # residual connection
@@ -578,7 +582,11 @@ class GPT2Block(bnn.BNNMixin, GradientCheckpointingLayer):
 
         residual = hidden_states
         hidden_states = self.ln_2(hidden_states)
-        feed_forward_hidden_states = self.mlp(hidden_states)
+        feed_forward_hidden_states = self.mlp(
+            hidden_states,
+            sample_shape=sample_shape,
+            generator=generator,
+        )
         # residual connection
         hidden_states = residual + feed_forward_hidden_states
 
