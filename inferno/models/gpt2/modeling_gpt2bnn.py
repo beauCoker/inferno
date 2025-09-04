@@ -26,37 +26,57 @@ import torch.utils.checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from ...activations import ACT2FN, get_activation
-from ...cache_utils import Cache, DynamicCache, EncoderDecoderCache
-from ...generation import GenerationMixin
-from ...masking_utils import create_causal_mask
-from ...modeling_attn_mask_utils import _prepare_4d_attention_mask_for_sdpa
-from ...modeling_layers import GradientCheckpointingLayer
-from ...modeling_outputs import (
+from inferno import bnn
+
+from transformers.activations import ACT2FN, get_activation
+from transformers.cache_utils import Cache, DynamicCache, EncoderDecoderCache
+from transformers.generation import GenerationMixin
+from transformers.masking_utils import create_causal_mask
+from transformers.modeling_attn_mask_utils import _prepare_4d_attention_mask_for_sdpa
+from transformers.modeling_layers import GradientCheckpointingLayer
+from transformers.modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     CausalLMOutputWithCrossAttentions,
     QuestionAnsweringModelOutput,
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
-from ...pytorch_utils import (
+from transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from transformers.pytorch_utils import (
     Conv1D,
     find_pruneable_heads_and_indices,
     prune_conv1d_layer,
 )
-from ...utils import (
+from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
     auto_docstring,
     logging,
 )
-from ...utils.deprecation import deprecate_kwarg
-from ...utils.model_parallel_utils import assert_device_map, get_device_map
+from transformers.utils.deprecation import deprecate_kwarg
+from transformers.utils.model_parallel_utils import assert_device_map, get_device_map
 from .configuration_gpt2 import GPT2Config
 
 
 logger = logging.get_logger(__name__)
+
+
+def make_cov(cov):
+    # TO DO: improve
+    if cov is None:
+        return None
+    elif isinstance(cov, str):
+        return eval("bnn.params." + cov)
+    else:
+        return NotImplementedError("cov not found")
+
+
+def make_parametrization(parametrization_name):
+    # TO DO: do we need this?
+    if parametrization_name == "muP":
+        return bnn.params.parametrizations.maximal_update.MaximalUpdate()
+    elif parametrization_name == "SP":
+        return bnn.params.parametrizations.standard.Standard()
 
 
 def load_tf_weights_in_gpt2(model, config, gpt2_checkpoint_path):
