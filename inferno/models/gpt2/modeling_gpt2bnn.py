@@ -961,6 +961,8 @@ class GPT2Model(bnn.BNNMixin, GPT2PreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        sample_shape: torch.Size = torch.Size([]),
+        generator: torch.Generator | None = None,
         **kwargs,
     ) -> Union[tuple, BaseModelOutputWithPastAndCrossAttentions]:
         r"""
@@ -1109,7 +1111,12 @@ class GPT2Model(bnn.BNNMixin, GPT2PreTrainedModel):
 
         hidden_states = self.drop(hidden_states)
 
-        output_shape = (-1,) + input_shape[1:] + (hidden_states.size(-1),)
+        # Add sample dimension
+        hidden_states = hidden_states.expand(*sample_shape, *hidden_states.shape)
+
+        output_shape = (
+            sample_shape + (-1,) + input_shape[1:] + (hidden_states.size(-1),)
+        )
 
         all_self_attentions = () if output_attentions else None
         all_cross_attentions = (
@@ -1139,6 +1146,8 @@ class GPT2Model(bnn.BNNMixin, GPT2PreTrainedModel):
                 encoder_attention_mask=encoder_attention_mask,
                 use_cache=use_cache,
                 output_attentions=output_attentions,
+                sample_shape=sample_shape,
+                generator=generator,
                 **kwargs,
             )
 
