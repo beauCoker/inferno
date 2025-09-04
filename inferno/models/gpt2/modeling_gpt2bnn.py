@@ -341,6 +341,8 @@ class GPT2Attention(bnn.BNNMixin, nn.Module):
         encoder_hidden_states: Optional[torch.Tensor] = None,
         encoder_attention_mask: Optional[torch.FloatTensor] = None,
         output_attentions: Optional[bool] = False,
+        sample_shape: torch.Size = torch.Size([]),
+        generator: torch.Generator | None = None,
         **kwargs,
     ) -> tuple[Union[torch.Tensor, tuple[torch.Tensor]], ...]:
         is_cross_attention = encoder_hidden_states is not None
@@ -376,15 +378,19 @@ class GPT2Attention(bnn.BNNMixin, nn.Module):
                 key_states = key_states.view(shape_kv).transpose(1, 2)
                 value_states = value_states.view(shape_kv).transpose(1, 2)
         else:
-            query_states, key_states, value_states = self.c_attn(hidden_states).split(
-                self.split_size, dim=2
-            )
+            query_states, key_states, value_states = self.c_attn(
+                hidden_states,
+                sample_shape=sample_shape,
+                generator=generator,
+                input_contains_samples=True,
+            ).split(self.split_size, dim=3)
+
             shape_kv = (*key_states.shape[:-1], -1, self.head_dim)
-            key_states = key_states.view(shape_kv).transpose(1, 2)
-            value_states = value_states.view(shape_kv).transpose(1, 2)
+            key_states = key_states.view(shape_kv).transpose(2, 3)
+            value_states = value_states.view(shape_kv).transpose(2, 3)
 
         shape_q = (*query_states.shape[:-1], -1, self.head_dim)
-        query_states = query_states.view(shape_q).transpose(1, 2)
+        query_states = query_states.view(shape_q).transpose(2, 3)
 
         if (past_key_values is not None and not is_cross_attention) or (
             past_key_values is not None and is_cross_attention and not is_updated
@@ -424,15 +430,28 @@ class GPT2Attention(bnn.BNNMixin, nn.Module):
                 query_states,
                 key_states,
                 value_states,
-                attention_mask,
+                (
+                    attention_mask.expand(*sample_shape, *attention_mask.shape)
+                    if attention_mask is not None
+                    else None
+                ),
                 head_mask=head_mask,
                 dropout=self.attn_dropout.p if self.training else 0.0,
                 is_causal=is_causal,
                 **kwargs,
             )
 
+        # To handle sampling need to correct transposing from sdpa_attention_forward
+        attn_output = attn_output.transpose(2, 1)
+        attn_output = attn_output.transpose(2, 3)
+
         attn_output = attn_output.reshape(*attn_output.shape[:-2], -1).contiguous()
-        attn_output = self.c_proj(attn_output)
+        attn_output = self.c_proj(
+            attn_output,
+            sample_shape=sample_shape,
+            generator=generator,
+            input_contains_samples=True,
+        )
         attn_output = self.resid_dropout(attn_output)
 
         return attn_output, attn_weights
