@@ -460,11 +460,24 @@ class GPT2MLP(bnn.BNNMixin, nn.Module):
         self.dropout = nn.Dropout(config.resid_pdrop)
 
     def forward(
-        self, hidden_states: Optional[tuple[torch.FloatTensor]]
+        self,
+        hidden_states: Optional[tuple[torch.FloatTensor]],
+        sample_shape: torch.Size = torch.Size([]),
+        generator: torch.Generator | None = None,
     ) -> torch.FloatTensor:
-        hidden_states = self.c_fc(hidden_states)
+        hidden_states = self.c_fc(
+            hidden_states,
+            sample_shape=sample_shape,
+            generator=generator,
+            input_contains_samples=True,
+        )
         hidden_states = self.act(hidden_states)
-        hidden_states = self.c_proj(hidden_states)
+        hidden_states = self.c_proj(
+            hidden_states,
+            sample_shape=sample_shape,
+            generator=generator,
+            input_contains_samples=True,
+        )
         hidden_states = self.dropout(hidden_states)
         return hidden_states
 
