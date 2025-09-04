@@ -191,8 +191,8 @@ def eager_attention_forward(
     return attn_output, attn_weights
 
 
-class GPT2Attention(nn.Module):
-    def __init__(self, config, is_cross_attention=False, layer_idx=None):
+class GPT2Attention(bnn.BNNMixin, nn.Module):
+    def __init__(self, config, is_cross_attention=False, layer_idx=None, cov={}):
         super().__init__()
         self.config = config
         max_positions = config.max_position_embeddings
@@ -436,8 +436,8 @@ class GPT2Attention(nn.Module):
         return attn_output, attn_weights
 
 
-class GPT2MLP(nn.Module):
-    def __init__(self, intermediate_size, config):
+class GPT2MLP(bnn.BNNMixin, nn.Module):
+    def __init__(self, intermediate_size, config, cov={}):
         super().__init__()
         embed_dim = config.hidden_size
         self.c_fc = Conv1D(intermediate_size, embed_dim)
@@ -455,14 +455,16 @@ class GPT2MLP(nn.Module):
         return hidden_states
 
 
-class GPT2Block(GradientCheckpointingLayer):
-    def __init__(self, config, layer_idx=None):
+class GPT2Block(bnn.BNNMixin, GradientCheckpointingLayer):
+    def __init__(self, config, layer_idx=None, cov={}):
         super().__init__()
         hidden_size = config.hidden_size
         inner_dim = config.n_inner if config.n_inner is not None else 4 * hidden_size
 
         self.ln_1 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
-        self.attn = GPT2Attention(config=config, layer_idx=layer_idx)
+        self.attn = GPT2Attention(
+            config=config, layer_idx=layer_idx, cov=cov.get("attn", {})
+        )
         self.ln_2 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
 
         if config.add_cross_attention:
@@ -473,7 +475,7 @@ class GPT2Block(GradientCheckpointingLayer):
                 hidden_size, eps=config.layer_norm_epsilon
             )
 
-        self.mlp = GPT2MLP(inner_dim, config)
+        self.mlp = GPT2MLP(inner_dim, config, cov=cov.get("mlp", {}))
 
     @deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
     def forward(
@@ -796,10 +798,10 @@ DEPARALLELIZE_DOCSTRING = r"""
 
 
 @auto_docstring
-class GPT2Model(GPT2PreTrainedModel):
+class GPT2Model(bnn.BNNMixin, GPT2PreTrainedModel):
     _supports_param_buffer_assignment = False
 
-    def __init__(self, config):
+    def __init__(self, config, cov={}):
         super().__init__(config)
 
         self.embed_dim = config.hidden_size
@@ -809,7 +811,10 @@ class GPT2Model(GPT2PreTrainedModel):
 
         self.drop = nn.Dropout(config.embd_pdrop)
         self.h = nn.ModuleList(
-            [GPT2Block(config, layer_idx=i) for i in range(config.num_hidden_layers)]
+            [
+                GPT2Block(config, layer_idx=i, cov=cov.get("h", {}).get(i, {}))
+                for i in range(config.num_hidden_layers)
+            ]
         )
         self.ln_f = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon)
 
@@ -1132,12 +1137,12 @@ class GPT2Model(GPT2PreTrainedModel):
     embeddings).
     """
 )
-class GPT2LMHeadModel(GPT2PreTrainedModel, GenerationMixin):
+class GPT2LMHeadModel(bnn.BNNMixin, GPT2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
 
-    def __init__(self, config):
+    def __init__(self, config, cov={}):
         super().__init__(config)
-        self.transformer = GPT2Model(config)
+        self.transformer = GPT2Model(config, cov=cov.get("transformer", {}))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
         # Model parallel
