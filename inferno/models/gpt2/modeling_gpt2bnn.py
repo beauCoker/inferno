@@ -1201,7 +1201,7 @@ class GPT2Model(bnn.BNNMixin, GPT2PreTrainedModel):
     """
 )
 class GPT2LMHeadModel(bnn.BNNMixin, GPT2PreTrainedModel, GenerationMixin):
-    _tied_weights_keys = ["lm_head.weight"]
+    _tied_weights_keys = ["lm_head.params.weight"]
 
     def __init__(self, config, cov={}):
         super().__init__(parametrization, config)
@@ -1271,6 +1271,8 @@ class GPT2LMHeadModel(bnn.BNNMixin, GPT2PreTrainedModel, GenerationMixin):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         logits_to_keep: Union[int, torch.Tensor] = 0,
+        sample_shape: torch.Size = torch.Size([]),
+        generator: torch.Generator | None = None,
         **kwargs,
     ) -> Union[tuple, CausalLMOutputWithCrossAttentions]:
         r"""
@@ -1310,6 +1312,8 @@ class GPT2LMHeadModel(bnn.BNNMixin, GPT2PreTrainedModel, GenerationMixin):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            sample_shape=sample_shape,
+            generator=generator,
         )
         hidden_states = transformer_outputs[0]
 
@@ -1323,7 +1327,7 @@ class GPT2LMHeadModel(bnn.BNNMixin, GPT2PreTrainedModel, GenerationMixin):
             if isinstance(logits_to_keep, int)
             else logits_to_keep
         )
-        logits = self.lm_head(hidden_states[:, slice_indices, :])
+        logits = self.lm_head(hidden_states[:, :, slice_indices, :])
 
         loss = None
         if labels is not None:
