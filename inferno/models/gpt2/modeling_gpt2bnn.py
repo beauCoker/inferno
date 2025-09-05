@@ -734,6 +734,8 @@ class GPT2PreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights."""
+
+        """
         if isinstance(module, (nn.Linear, Conv1D)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
@@ -764,6 +766,22 @@ class GPT2PreTrainedModel(PreTrainedModel):
                         / math.sqrt(2 * self.config.n_layer)
                     ),
                 )
+        """
+
+        # Call reset_parameters on the outermost module.
+        # May want to add GPT2Module to this list (in which case you can check with `isinstance(module, GPT2PreTrainedModel)`)
+        # But this would initialize most parameters twice
+        if isinstance(
+            module,
+            (
+                GPT2LMHeadModel,
+                GPT2DoubleHeadsModel,
+                GPT2DoubleHeadsModel,
+                GPT2ForSequenceClassification,
+                GPT2ForQuestionAnswering,
+            ),
+        ):
+            module.reset_parameters()
 
 
 @dataclass
