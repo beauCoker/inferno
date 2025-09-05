@@ -769,8 +769,9 @@ class GPT2PreTrainedModel(PreTrainedModel):
         """
 
         # Call reset_parameters on the outermost module.
-        # May want to add GPT2Module to this list (in which case you can check with `isinstance(module, GPT2PreTrainedModel)`)
+        # May want to add GPT2Model to this list (in which case you can check with `isinstance(module, GPT2PreTrainedModel)`)
         # But this would initialize most parameters twice
+        # Currently a GPT2Model on it's own would not have it's parameters reset
         if isinstance(
             module,
             (
