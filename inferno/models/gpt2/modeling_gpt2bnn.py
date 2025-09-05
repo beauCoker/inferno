@@ -1252,6 +1252,12 @@ class GPT2LMHeadModel(bnn.BNNMixin, GPT2PreTrainedModel, GenerationMixin):
         self.model_parallel = False
         torch.cuda.empty_cache()
 
+    def get_output_embeddings(self):
+        return self.lm_head.params
+
+    def set_output_embeddings(self, new_embeddings):
+        self.lm_head.params = new_embeddings
+
     @auto_docstring
     def forward(
         self,
