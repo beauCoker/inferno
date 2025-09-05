@@ -155,6 +155,16 @@ def reset_parameters_of_torch_module(
     ):
         # No need to change parameter initialization of layer norm according to Appendix B.1 of http://arxiv.org/abs/2203.03466
         module.reset_parameters()
+    elif isinstance(module, nn.Embedding):
+        fan_in, fan_out = nn.init._calculate_fan_in_and_fan_out(module.weight)
+
+        nn.init.normal_(
+            module.weight,
+            mean=0,
+            std=parametrization.weight_init_scale(
+                fan_in=fan_in, fan_out=fan_out, layer_type="input"
+            ),
+        )
     else:
         raise NotImplementedError(
             f"Cannot reset parameters of module: {module.__class__.__name__} "
