@@ -18,6 +18,7 @@ from .resnet import (
     WideResNet50,
     WideResNet101,
 )
+from .gpt2 import GPT2LMHeadModel
 
 ___all__ = [
     "Ensemble",
@@ -34,4 +35,5 @@ ___all__ = [
     "WideResNet50",
     "WideResNet101",
     "as_torch_model",
+    "GPT2LMHeadModel",
 ]

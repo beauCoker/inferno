@@ -55,7 +55,7 @@ from transformers.utils import (
 )
 from transformers.utils.deprecation import deprecate_kwarg
 from transformers.utils.model_parallel_utils import assert_device_map, get_device_map
-from transformers.models.configuration_gpt2 import GPT2Config
+from transformers.models.gpt2.configuration_gpt2 import GPT2Config
 
 
 logger = logging.get_logger(__name__)
