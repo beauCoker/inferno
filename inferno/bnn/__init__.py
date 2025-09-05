@@ -1,7 +1,7 @@
 """Basic building blocks for Bayesian neural networks."""
 
 from . import params
-from .modules import Conv1d, Conv2d, Conv3d, Linear, Sequential
+from .modules import Conv1d, Conv2d, Conv3d, Linear, LinearTransposed, Sequential
 from .temperature_scaler import TemperatureScaler
 
 from .modules import BNNMixin, batched_forward  # isort:skip

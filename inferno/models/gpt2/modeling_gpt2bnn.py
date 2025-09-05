@@ -1203,7 +1203,7 @@ class GPT2Model(bnn.BNNMixin, GPT2PreTrainedModel):
 class GPT2LMHeadModel(bnn.BNNMixin, GPT2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.params.weight"]
 
-    def __init__(self, config, cov={}):
+    def __init__(self, config, parametrization, cov={}):
         super().__init__(parametrization, config)
         self.transformer = GPT2Model(config, cov=cov.get("transformer", {}))
         self.lm_head = bnn.Linear(
