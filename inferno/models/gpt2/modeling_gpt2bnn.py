@@ -342,7 +342,7 @@ class GPT2Attention(bnn.BNNMixin, nn.Module):
         encoder_attention_mask: Optional[torch.FloatTensor] = None,
         output_attentions: Optional[bool] = False,
         sample_shape: torch.Size = torch.Size([]),
-        generator: torch.Generator | None = None,
+        generator: Optional[torch.Generator] = None,
         **kwargs,
     ) -> tuple[Union[torch.Tensor, tuple[torch.Tensor]], ...]:
         is_cross_attention = encoder_hidden_states is not None
@@ -482,7 +482,7 @@ class GPT2MLP(bnn.BNNMixin, nn.Module):
         self,
         hidden_states: Optional[tuple[torch.FloatTensor]],
         sample_shape: torch.Size = torch.Size([]),
-        generator: torch.Generator | None = None,
+        generator: Optional[torch.Generator] = None,
     ) -> torch.FloatTensor:
         hidden_states = self.c_fc(
             hidden_states,
@@ -536,7 +536,7 @@ class GPT2Block(bnn.BNNMixin, GradientCheckpointingLayer):
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
         sample_shape: torch.Size = torch.Size([]),
-        generator: torch.Generator | None = None,
+        generator: Optional[torch.Generator] = None,
         **kwargs,
     ) -> Union[
         tuple[torch.Tensor],
@@ -962,7 +962,7 @@ class GPT2Model(bnn.BNNMixin, GPT2PreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         sample_shape: torch.Size = torch.Size([]),
-        generator: torch.Generator | None = None,
+        generator: Optional[torch.Generator] = None,
         **kwargs,
     ) -> Union[tuple, BaseModelOutputWithPastAndCrossAttentions]:
         r"""
@@ -1272,7 +1272,7 @@ class GPT2LMHeadModel(bnn.BNNMixin, GPT2PreTrainedModel, GenerationMixin):
         return_dict: Optional[bool] = None,
         logits_to_keep: Union[int, torch.Tensor] = 0,
         sample_shape: torch.Size = torch.Size([]),
-        generator: torch.Generator | None = None,
+        generator: Optional[torch.Generator] = None,
         **kwargs,
     ) -> Union[tuple, CausalLMOutputWithCrossAttentions]:
         r"""
